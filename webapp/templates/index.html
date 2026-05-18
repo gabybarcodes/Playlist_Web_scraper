@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify Playlist Export</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">Playlist Export</p>
+        <h1>Paste a Spotify playlist link and export tracks as CSV.</h1>
+        <p class="subtitle">Output format: Song - Artist</p>
+      </header>
+
+      <section class="panel">
+        <form class="input-form" method="post" action="/">
+          <label for="playlist_url">Spotify playlist link</label>
+          <div class="field-row">
+            <input
+              id="playlist_url"
+              name="playlist_url"
+              type="url"
+              placeholder="https://open.spotify.com/playlist/..."
+              required
+            />
+            <button type="submit">Fetch tracks</button>
+          </div>
+        </form>
+
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+      </section>
+
+      {% if tracks %}
+      <section class="panel results">
+        <div class="results-header">
+          <h2>
+            {{ tracks|length }} tracks found
+            {% if expected_count %}
+            <span class="count-meta">Spotify shows {{ expected_count }} songs</span>
+            {% endif %}
+          </h2>
+          <form method="post" action="/download">
+            <input type="hidden" name="tracks_json" value='{{ tracks_json|tojson }}' />
+            <button type="submit" class="secondary">Download CSV</button>
+          </form>
+        </div>
+        <ul class="track-list">
+          {% for track in tracks %}
+          {% if loop.index == 74 %}
+          <li class="section-title">Recommended</li>
+          {% endif %}
+          <li>
+            <span class="index">{{ track.position or loop.index }}.</span>
+            <span class="song">{{ track.song }}</span>
+            <span class="divider">-</span>
+            <span class="artist">{{ track.artist }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </main>
+  </body>
+</html>
