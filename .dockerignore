@@ -1,0 +1,6 @@
+(venv)spotify/
+webapp copy/
+__pycache__/
+*.pyc
+.DS_Store
+.git/
