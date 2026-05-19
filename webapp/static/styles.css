@@ -118,6 +118,12 @@ button.secondary {
   flex-wrap: wrap;
 }
 
+.button-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .count-meta {
   display: inline-block;
   margin-left: 12px;

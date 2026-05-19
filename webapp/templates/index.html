@@ -43,11 +43,25 @@
             <span class="count-meta">Spotify shows {{ expected_count }} songs</span>
             {% endif %}
           </h2>
-          <form method="post" action="/download">
-            <input type="hidden" name="tracks_json" value='{{ tracks_json|tojson }}' />
-            <button type="submit" class="secondary">Download CSV</button>
-          </form>
+          <div class="button-group">
+            <button type="button" class="secondary" id="copy-btn" onclick="copyTracks()">Copy all</button>
+            <form method="post" action="/download">
+              <input type="hidden" name="tracks_json" value='{{ tracks_json|tojson }}' />
+              <button type="submit" class="secondary">Download CSV</button>
+            </form>
+          </div>
         </div>
+        <script>
+          function copyTracks() {
+            const tracks = {{ tracks_json|tojson }};
+            const text = tracks.map(t => t.song + " - " + t.artist).join("\n");
+            navigator.clipboard.writeText(text).then(function() {
+              const btn = document.getElementById("copy-btn");
+              btn.textContent = "Copied!";
+              setTimeout(() => btn.textContent = "Copy all", 2000);
+            });
+          }
+        </script>
         <ul class="track-list">
           {% for track in tracks %}
           {% if loop.index == 74 %}
