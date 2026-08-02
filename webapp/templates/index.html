@@ -15,6 +15,10 @@
       </header>
 
       <section class="panel">
+        {% if not logged_in %}
+        <p class="subtitle">Log in with Spotify to fetch playlist tracks.</p>
+        <a href="/login"><button type="button">Log in with Spotify</button></a>
+        {% else %}
         <form class="input-form" method="post" action="/">
           <label for="playlist_url">Spotify playlist link</label>
           <div class="field-row">
@@ -28,6 +32,8 @@
             <button type="submit">Fetch tracks</button>
           </div>
         </form>
+        <p class="subtitle"><a href="/logout">Log out</a></p>
+        {% endif %}
 
         {% if error %}
         <p class="error">{{ error }}</p>
