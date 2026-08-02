@@ -1,1 +1,4 @@
 .DS_Store
+webapp/.env
+__pycache__/
+*.pyc
