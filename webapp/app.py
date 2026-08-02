@@ -6,7 +6,6 @@ import re
 from typing import List, Dict, Optional, Tuple
 
 import spotipy
-from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.oauth2 import SpotifyClientCredentials
 from flask import Flask, render_template, request, send_file
 
@@ -24,7 +23,6 @@ def fetch_playlist_tracks(playlist_url: str) -> Tuple[List[Dict[str, str]], Opti
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
         client_id=os.environ['SPOTIFY_CLIENT_ID'],
         client_secret=os.environ['SPOTIFY_CLIENT_SECRET'],
-        cache_handler=MemoryCacheHandler(),
     ))
 
     playlist_id = _get_playlist_id(playlist_url)
