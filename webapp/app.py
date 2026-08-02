@@ -5,11 +5,36 @@ import os
 import re
 from typing import List, Dict, Optional, Tuple
 
+from dotenv import load_dotenv
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-from flask import Flask, render_template, request, send_file
+from spotipy.cache_handler import FlaskSessionCacheHandler
+from spotipy.oauth2 import SpotifyOAuth
+from flask import Flask, redirect, render_template, request, send_file, session, url_for
+
+load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
+
+SPOTIFY_SCOPE = 'playlist-read-private playlist-read-collaborative'
+
+
+def _get_auth_manager() -> SpotifyOAuth:
+    return SpotifyOAuth(
+        client_id=os.environ['SPOTIFY_CLIENT_ID'],
+        client_secret=os.environ['SPOTIFY_CLIENT_SECRET'],
+        redirect_uri=os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/callback'),
+        scope=SPOTIFY_SCOPE,
+        cache_handler=FlaskSessionCacheHandler(session),
+    )
+
+
+def _get_spotify_client() -> Optional[spotipy.Spotify]:
+    auth_manager = _get_auth_manager()
+    token_info = auth_manager.cache_handler.get_cached_token()
+    if not token_info or not auth_manager.validate_token(token_info):
+        return None
+    return spotipy.Spotify(auth_manager=auth_manager)
 
 
 def _get_playlist_id(url: str) -> str:
@@ -19,12 +44,7 @@ def _get_playlist_id(url: str) -> str:
     return match.group(1)
 
 
-def fetch_playlist_tracks(playlist_url: str) -> Tuple[List[Dict[str, str]], Optional[int]]:
-    sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-        client_id=os.environ['SPOTIFY_CLIENT_ID'],
-        client_secret=os.environ['SPOTIFY_CLIENT_SECRET'],
-    ))
-
+def fetch_playlist_tracks(sp: spotipy.Spotify, playlist_url: str) -> Tuple[List[Dict[str, str]], Optional[int]]:
     playlist_id = _get_playlist_id(playlist_url)
     results = sp.playlist_tracks(playlist_id, fields='items(track(name,artists(name))),next,total')
     total = results.get('total')
@@ -61,23 +81,47 @@ def _tracks_to_csv(tracks: List[Dict[str, str]]) -> io.BytesIO:
     return bytes_io
 
 
+@app.route("/login")
+def login():
+    auth_manager = _get_auth_manager()
+    return redirect(auth_manager.get_authorize_url())
+
+
+@app.route("/callback")
+def callback():
+    auth_manager = _get_auth_manager()
+    auth_manager.get_access_token(request.args.get("code"))
+    return redirect(url_for("index"))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     error = None
     tracks: List[Dict[str, str]] = []
     expected_count: Optional[int] = None
 
+    sp = _get_spotify_client()
+
     if request.method == "POST":
-        playlist_url = request.form.get("playlist_url", "").strip()
-        if not playlist_url:
-            error = "Please paste a Spotify playlist link."
+        if not sp:
+            error = "Please log in with Spotify first."
         else:
-            try:
-                tracks, expected_count = fetch_playlist_tracks(playlist_url)
-                if not tracks:
-                    error = "No tracks found. Make sure the playlist is public."
-            except Exception as exc:
-                error = f"Failed to fetch playlist: {exc}"
+            playlist_url = request.form.get("playlist_url", "").strip()
+            if not playlist_url:
+                error = "Please paste a Spotify playlist link."
+            else:
+                try:
+                    tracks, expected_count = fetch_playlist_tracks(sp, playlist_url)
+                    if not tracks:
+                        error = "No tracks found. Make sure the playlist is public or you have access to it."
+                except Exception as exc:
+                    error = f"Failed to fetch playlist: {exc}"
 
     return render_template(
         "index.html",
@@ -85,6 +129,7 @@ def index():
         tracks=tracks,
         expected_count=expected_count,
         tracks_json=tracks,
+        logged_in=sp is not None,
     )
 
 
